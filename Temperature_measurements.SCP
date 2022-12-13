@@ -1,0 +1,223 @@
+//////////////////////////////////////////////////
+//	Temperature dependent DLS/SLS measurement
+// 	for a range of scattering angle
+//	Nico Carl
+//
+//////////////////////////////////////////////////
+//
+
+//
+// Stuff for temperature equlibration
+//
+
+COMPort   := 1;     // Use COM1
+deltaTemp := 0.1;   // 0.1°C temperature difference is "good"
+eqTime    := 10;    // 60 s for equilibration
+
+minATemp  := 5.0;     // Minimum allowed temperature °C
+maxATemp  := 70.0;  // Maximum allowed temperature °C
+
+
+//
+//	Measurement details
+//
+ 
+Duration   := 30;      // 30 s Duration for all runs
+AutoScale  := 0;     // 0 - off, not used for ALV-700X correlators
+SetAutoScale(0);
+PostWait  :=  0;     // no post wait here, if set it is in [s]
+Angle := 25.0;         // initial angle
+
+SetArray(AngleArray, float, 13);
+AngleArray[0] := 30.00;
+AngleArray[1] := 40.00;
+AngleArray[2] := 50.00;
+AngleArray[3] := 60.00;
+AngleArray[4] := 70.00;
+AngleArray[5] := 80.00;
+AngleArray[6] := 90.00;
+AngleArray[7] := 100.00;
+AngleArray[8] := 110.00;
+AngleArray[9] := 120.00;
+AngleArray[10] := 130.00;
+AngleArray[11] := 140.00;
+AngleArray[12] := 150.00;
+
+NoofTemps := 4;
+SetArray(TempArray, float, 4);
+
+TempArray[0] := 10.0;
+TempArray[1] := 21.9;
+TempArray[2] := 36.9;
+TempArray[3] := 10.0;
+
+
+
+for j := 0 to NoofTemps-1 do
+	begin
+	
+		if (GetGlobBool(1) = false) then
+		  begin
+			 // not yet initialized, do so now, open COM, set wbt to
+			 // external control and ensure a controller temp of 22°C
+			 // here, COM2 is used for wbt control, HAAKE types normally
+			 // use 9600,8,n,1 - but you should ensure this in the wbt
+			 // configuration menu, CR (or 13) is used as delimiter
+
+			 TextOut('Initializing water bath thermostat');
+			 wbtCom := OpenCOM(COMPort, 9600, 13);
+
+			 rbStr := ReceiveCOM(wbtCom, 0);
+
+			 // Set wbt to external control
+
+			 SendCom(wbtCom, 'EX');
+			 Wait(500);
+
+			 rbStr := ReceiveCOM(wbtCom, 0);
+
+			 // Fetch TempArray[j] and convert to HAAKE format
+			 // (in 1/100°C, that is), check that TempArray[j] makes sense
+			 // allowing it not to be smaller than 5°C
+			 
+			 if (TempArray[j] < minATemp) then TempArray[j] := minATemp;
+			 if (TempArray[j] > maxATemp) then TempArray[j] := maxATemp;
+		   
+			 TempStr := IntToStr(round(TempArray[j] * 100.0));
+			 TargetTmpStr1 := '00000';
+			 Insert(TempStr, TargetTmpStr1, 6 - Length(TempStr));
+			 TargetTmpStr1 := Copy(TargetTmpStr1, 1, 5);
+			 TargetTempStr := 'S  '+TargetTmpStr1;
+			 
+			 SendCom(wbtCom, TargetTempStr); 
+			 Wait(500);
+
+			 // Fetch eventual characters in the RS-232 buffer and ignore them
+
+			 rbStr := ReceiveCOM(wbtCom, 0);
+
+			 CloseCom(wbtCom);
+
+			 // Initialized, set GlobBool(1) accordingly
+
+			 SetGlobBool(1, true);
+
+		   end;
+
+			 // OK, wbt was initialized, we presume this script is
+			 // called from a schedule. The target temperature defined
+			 // in the schedule is located in TempArray[j] (see help file,
+			 // Binding Schedules and Scripts) send this to the wbt and 
+			 // wait for the temperature to be reached + equilibration
+
+			 wbtCom := OpenCOM(COMPort, 9600, 13);
+
+			 // Fetch eventual characters in the RS-232 buffer and ignore them
+
+			 rbStr := ReceiveCOM(wbtCom, 0);
+
+			 // Transform TempArray[j] to desired format (in 1/100°C, that is),
+
+			 if (TempArray[j] < minATemp) then TempArray[j] := minATemp;
+			 if (TempArray[j] > maxATemp) then TempArray[j] := maxATemp;
+			
+			 TempStr := IntToStr(round(TempArray[j] * 100.0));
+			 TargetTmpStr1 := '00000';
+			 Insert(TempStr, TargetTmpStr1, 6 - Length(TempStr));
+			 TargetTmpStr1 := Copy(TargetTmpStr1, 1, 5);
+			 TargetTempStr := 'S  '+TargetTmpStr1;
+			 
+			 // And set new target temperature
+
+			 rbStr := ReceiveCOM(wbtCom, 0);
+
+			 // Send twice, just in case
+
+			 SendCom(wbtCom, TargetTempStr);
+			 Wait(200);
+			 SendCom(wbtCom, TargetTempStr);
+
+			 Wait(500); 
+
+			 // now check for the temperature to be reached deltaTemp
+			 // Send out 'F2' to read the external temperature probe
+			 // (F1 would be the internal temperature probe),
+			 // wait for 200 ms, read back value
+
+			 rbStr := ReceiveCOM(wbtCom, 0);
+
+			 TempNotReached := true;
+			 while (TempNotReached = true) do
+			   begin 
+
+					// Ensure nothing is left over in the RS-232 buffer
+
+					Wait(200);
+					SendCom(wbtCom,'F1');
+					Wait(200);
+					rbStr := ReceiveCOM(wbtCom, 0);
+
+					// Check if there was a tranmission error, if so, the HAAKE
+					// returns someting like "FXXX" as error code, thus checking,
+				// if the return contains an "F" thus is sufficient
+
+					if (Pos('F', rbStr) > 0) then
+					  begin
+						// there was an error, ignore that, but set the 
+						// actualTemp way off to ensure it remains in the loop
+						actualTemp := -999.9;
+					  end
+					else
+					  begin
+						// No Error, convert the readback 
+						// read back format is ' +XXX.XX °C', so strip down 
+						// the string to just the number plus sign
+
+						rbStr := Copy(rbStr,1,8);
+						actualTemp := StrToFloat(rbStr);
+						TextClear;
+						TextOut('Target/Actual Temp : ',TempArray[j],'°C ',actualTemp, '°C');
+					  end;
+		 
+					  // target temperature reached ? sqt(sqr) used instead of
+					  // abs(), which is not supported here
+
+					  if (sqrt(sqr(actualTemp-TempArray[j])) < deltaTemp) then TempNotReached := false;
+				end;
+
+			// OK, target reached to deltaTemp, close COM directly and then
+			// wait for a while -> thermal equilibration ...
+
+			 CloseCom(wbtCom);
+                         SetAngle(90.1);
+                         StartCorr(5,1);
+                         Wait(5000);
+			 for i := 1 to eqTime do
+			   begin
+				 TextClear;
+				 TextOut(format('Equilibrating for another %5d s', eqTime-i));
+                                 StartCorr(2,1);
+				 // and wait a second
+				 Wait(2000); 
+
+
+		end;
+		
+		
+	//
+	//	Start the actual measurement
+	//
+	Textout('Temperature: ', TempArray[j], 'C');
+	for i := 0 to 12 do
+		begin
+			Angle := AngleArray[i];
+			SetAngle(Angle);
+			Dur := Duration;
+			for k := 1 to 5 do
+				begin
+					StartCorr(Dur,1);
+                                        Repeat until IsRunning = False;
+					//ToNoteBook(Angle, AutoScale, Dur, PostWait, Temparray[j], 0, 0);
+				end;
+		end;
+	end;
