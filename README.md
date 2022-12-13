@@ -1,7 +1,7 @@
 # PyTemperatureDLS
 This code is designed to provide an analysis tool for temperature dependent dynamic light scattering data collected ALV CGS3.
 
-The file *...scp* is an example code to control the instruments.
+The file *Temperature_measurements.SCP* is an example code to control the instruments.
 
 Several samples can be analyzed. The software is reading in all data within one specified folder. Each subfolder is considered as one sample. The folder name is treated as sample name.
 
