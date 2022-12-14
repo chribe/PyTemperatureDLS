@@ -1,8 +1,21 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Tue Oct 25 09:15:04 2022
+
+@author: Christian Beck
+
+christianbeck91@gmx.de
+
+ORCID: https://orcid.org/0000-0001-7214-3447
+
+"""
 import numpy as np
 import time
 from lmfit import Model, Parameters
 import pickle
 import warnings
+import h5py
 warnings.filterwarnings("ignore")
 
 #%% different functions
@@ -15,6 +28,38 @@ def load(Filename):
     with open(Filename, "rb") as file:
         loaded_dict = pickle.load(file)
     return loaded_dict
+#%% save to h5py
+def savehdf(name,dataset):
+    f=h5py.File(name,'w')
+    path='/'
+    if isinstance(dataset,dict):
+        savehdfdict(dataset,path,f)
+    elif isinstance(dataset,list):
+        savehdflist(dataset,path,f)
+    f.close()
+def savehdflist(liste,path,f):
+    # print('liste: ' + path)
+    for hi,listentry in enumerate(liste):
+        if isinstance(listentry,dict):
+            savehdfdict(listentry, path + 'Dataset_' + str(hi) +'/', f)
+        elif isinstance(listentry,list):
+            savehdflist(listentry, path + 'Dataset_' + str(hi) +'/', f)
+        else:
+            f.create_dataset(path + 'entry' + str(hi) +'/',data=listentry)
+            
+def savehdfdict(dictionary,path,f):
+    # print('dict: ' + path)
+    for key in dictionary.keys():
+        if isinstance(dictionary[key],dict):
+            savehdfdict(dictionary[key],path + key + '/',f)
+        elif isinstance(dictionary[key],list):
+            savehdflist(dictionary[key],path + key + '/',f)
+        else:
+            if dictionary[key] is None:
+                dictionary[key]=np.nan
+            f.create_dataset(path + key,data=dictionary[key])
+
+#%%
 # readin data
 def readin(file):
     f=open(file,'r',encoding="ISO-8859-1")
