@@ -3,7 +3,12 @@
 """
 Created on Tue Oct 25 09:15:04 2022
 
-@author: christian
+@author: Christian Beck
+
+christianbeck91@gmx.de
+
+ORCID: https://orcid.org/0000-0001-7214-3447
+
 """
 import DLSLib as DL
 import os
@@ -86,7 +91,7 @@ for DLSmeas in DLS:
                     g2m1[:,hi2]=g2m1[:,hi2]/g2m1[reddata['tau']<0.001,hi2].mean()
                 reddata.update({'g2m1':g2m1.mean(axis=1),
                                 'dg2m1':g2m1.std(axis=1),
-                                'discarted':discarted})
+                                'discarted':np.array(discarted)})
                 DLSmeas['RedData'].append(reddata)
                 reddata={}
                 currdata=[]
@@ -197,7 +202,7 @@ for DLSmeas in DLS:
         T=[]
         q=[]
         name=[]
-        DLSmeas['Fitanalysis'].update({fit:{'T':[],'D1':[],'dD1':[],'D2':[],'dD2':[]}})
+        DLSmeas['Fitanalysis'].update({fit:{'T':np.array([]),'D1':np.array([]),'dD1':np.array([]),'D2':np.array([]),'dD2':np.array([])}})
         for meas in DLSmeas['RedData']:
             w1.append(meas['Fit'][hi]['w1'])
             dw1.append(meas['Fit'][hi]['dw1'])
@@ -210,7 +215,7 @@ for DLSmeas in DLS:
         dw2=np.array(dw2,dtype=float)
         for Tl in Tlimits:
             if Tl<max(np.array(T)+3):
-                DLSmeas['Fitanalysis'][fit]['T'].append(Tl)
+                DLSmeas['Fitanalysis'][fit]['T']=np.append(DLSmeas['Fitanalysis'][fit]['T'],Tl)
                 fig, ax1 = plt.subplots()
                 ax1.errorbar(np.array(q)[(T<Tl+1.25)&(T>Tl-1.25)]**2,np.array(w1)[(T<Tl+1.25)&(T>Tl-1.25)],dw1[(T<Tl+1.25)&(T>Tl-1.25)],fmt='o')
                 model,param=DL.returnfitmodel('Dq2')
@@ -237,10 +242,10 @@ for DLSmeas in DLS:
                 model2,param2=DL.returnfitmodel('Dq2')
                 Dq2fit2=model2.fit(g2[q2>250],param2,x=q2[q2>250],weights=dg2[q2>250])
                 ax2.plot(x,Dq2fit2.eval(x=x),color=color,zorder=10)
-                DLSmeas['Fitanalysis'][fit]['D1'].append(Dq2fit1.params['D'].value)
-                DLSmeas['Fitanalysis'][fit]['dD1'].append(Dq2fit1.params['D'].stderr)
-                DLSmeas['Fitanalysis'][fit]['D2'].append(Dq2fit2.params['D'].value)
-                DLSmeas['Fitanalysis'][fit]['dD2'].append(Dq2fit2.params['D'].stderr)
+                DLSmeas['Fitanalysis'][fit]['D1']=np.append(DLSmeas['Fitanalysis'][fit]['D1'],Dq2fit1.params['D'].value)
+                DLSmeas['Fitanalysis'][fit]['dD1']=np.append(DLSmeas['Fitanalysis'][fit]['dD1'],Dq2fit1.params['D'].stderr)
+                DLSmeas['Fitanalysis'][fit]['D2']=np.append(DLSmeas['Fitanalysis'][fit]['D2'],Dq2fit2.params['D'].value)
+                DLSmeas['Fitanalysis'][fit]['dD2']=np.append(DLSmeas['Fitanalysis'][fit]['dD2'],Dq2fit2.params['D'].stderr)
                 ax2.set_ylabel(r'$\gamma_2$ [ms$^{-1}$]', color = color)
                 ax2.tick_params(axis ='y', labelcolor = color)
                 ax2.set_ylim([0,1.1*max(np.array(w2)[(T<Tl+1.25)&(T>Tl-1.25)])])
@@ -262,7 +267,6 @@ for DLSmeas in DLS:
         plt.savefig('figures/fitanalysis_'+fittype +'/' +DLSmeas['Name'] +'T_dependence.pdf',bbox_inches='tight')
         plt.close()
         DL.writesummary('Summaries/' + DLSmeas['Name'] + '.tex',r'\includegraphics[width=.4\textwidth]{../figures/fitanalysis_'+fittype +'/' +DLSmeas['Name'] +'T_dependence.pdf}')
-DL.save("DLS_analysis.pickle",DLS)
 #%% compile Summaries
 print('\n######################\n###compile summaries##\n######################\n')
 for DLSmeas in DLS:
@@ -274,3 +278,6 @@ for DLSmeas in DLS:
     except:
         print('Compiling of ' + DLSmeas['Name'] + '.tex  failed!')
     os.chdir('..')
+#%% save Data Structure
+DL.save("DLS_analysis.pickle",DLS)
+DL.savehdf("DLS_analysis.hdf5",DLS)
