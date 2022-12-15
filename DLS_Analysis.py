@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Tue Oct 25 09:15:04 2022
+Version 15/12/2023 14:00
 
 @author: Christian Beck
 
@@ -25,9 +25,9 @@ plt.rcParams.update({
     "font.family": "Helvetica"
 })
 #%% some constants
-dT=1
+dT=1.25
 DLS=[]
-rdpath='./rawdata_test/'
+rdpath='./rawdata/'
 dirfiles = os.listdir(rdpath)
 #fullpaths = map(lambda name: os.path.join(dirname, name), dirfiles)
 dirs = []
@@ -121,27 +121,48 @@ for DLSmeas in DLS:
         Contin={'t':1./z_kww,
                 'distrib':z_kww*f_kww}
         meas.update({'Contin':Contin})
+#%% determine Temperatures
+Tlimit=[]
+for DLSmeas in DLS:
+    for meas in DLSmeas['RedData']:
+        Tlimit.append((np.array(meas['T'])*2).mean().round()/2)
+Tlimit=sorted(list(set(Tlimit)))
+Tdifference=np.array(Tlimit)[1:] -np.array(Tlimit)[0:-1]
+Tlimits=[]
+hi1=0
+# merge different temperatures
+for hi,Td in enumerate(Tdifference):
+    #print(Td)
+    if Td>dT:
+        #print(Tlimit[hi1:hi+1])
+        Tlimits.append(np.mean(Tlimit[hi1:hi+1]))
+        hi1=hi+1
+        
 #%% plot Contin
-Tlimits=np.arange(285,319,2.5)
+#Tlimits=np.arange(285,319,2.5)
 if not os.path.exists('figures'):
     os.mkdir('figures')
 if not os.path.exists('figures/contin'):
     os.mkdir('figures/contin')
+containscurve=False
 for Tl in Tlimits:
     for DLSmeas in DLS:
         fig=plt.figure()
         ax = fig.add_subplot(projection='3d')
         for meas in DLSmeas['RedData']:
-            if np.abs(np.mean(meas['T'])-Tl)<1.25:
+            if np.abs(np.mean(meas['T'])-Tl)<dT:
                 ax.scatter(np.ones(np.shape(meas['Contin']['t']))*np.mean(meas['q'])**2,\
                            np.log10(meas['Contin']['t']),meas['Contin']['distrib'],marker='o',\
                                color=colors(int(np.arange(0,13)[np.arange(30,160,10)==np.mean(meas['angle'])])))
+            if not np.shape([])==np.shape(meas['Contin']['t']):
+                containscurve=True
         ax.set_title(str(Tl))
         ax.set_xlabel(r'$q^2$ [nm$^{-2}$]')
         ax.set_ylabel(r'log$_{10}\left(t\right)$')
         ax.set_zlim([0,1])
-        fig.savefig('figures/contin/' +meas['filename'][0][15:-16] +str(Tl) +'.pdf',bbox_inches='tight')
-        DL.writesummary('Summaries/' + DLSmeas['Name'] + '.tex', r'\includegraphics[width=.4\textwidth]{'+'../figures/contin/' +meas['filename'][0][15:-16] +str(Tl) +'.pdf'+'} ')
+        if containscurve:
+            fig.savefig('figures/contin/' +DLSmeas['Name'] +str(Tl) +'.pdf',bbox_inches='tight')
+            DL.writesummary('Summaries/' + DLSmeas['Name'] + '.tex', r'\includegraphics[width=.4\textwidth]{'+'../figures/contin/' +DLSmeas['Name'] +str(Tl) +'.pdf'+'} ')
         plt.close()
 #%%
 print('\n######################\n########Fits##########\n######################\n')
@@ -215,45 +236,46 @@ for DLSmeas in DLS:
         dw2=np.array(dw2,dtype=float)
         for Tl in Tlimits:
             if Tl<max(np.array(T)+3):
-                DLSmeas['Fitanalysis'][fit]['T']=np.append(DLSmeas['Fitanalysis'][fit]['T'],Tl)
-                fig, ax1 = plt.subplots()
-                ax1.errorbar(np.array(q)[(T<Tl+1.25)&(T>Tl-1.25)]**2,np.array(w1)[(T<Tl+1.25)&(T>Tl-1.25)],dw1[(T<Tl+1.25)&(T>Tl-1.25)],fmt='o')
-                model,param=DL.returnfitmodel('Dq2')
-                dw1[dw1==None]=1000
-                dw1=np.array(dw1,dtype=float)
-                dw1[np.isnan(dw1)]=1000
-                g1=np.array(w1)[(T<Tl+1.25)&(T>Tl-1.25)]
-                dg1=1/dw1[(T<Tl+1.25)&(T>Tl-1.25)]
-                q2=np.array(q)[(T<Tl+1.25)&(T>Tl-1.25)]**2
-                Dq2fit1=model.fit(g1[q2>250],param,x=q2[q2>250],weights=dg1[q2>250])
-                x=np.linspace(0,650)
-                ax1.plot(x,Dq2fit1.eval(x=x),color='k',zorder=10)
-                ax1.set_xlabel(r'$q^2$ [nm$^{-2}$]')
-                ax1.set_ylabel(r'$\gamma$ [ms$^{-1}$]')
-                ax2 = ax1.twinx()
-                color = 'tab:green'
-                ax2.errorbar(np.array(q)[(T<Tl+1.25)&(T>Tl-1.25)]**2,np.array(w2)[(T<Tl+1.25)&(T>Tl-1.25)],dw2[(T<Tl+1.25)&(T>Tl-1.25)],fmt='s',color = color)
-                dw2[dw2==None]=1000
-                dw2[dw2==np.inf]=1000                
-                dw2=np.array(dw2,dtype=float)
-                dw2[np.isnan(dw2)]=1000
-                g2=np.array(w2)[(T<Tl+1.25)&(T>Tl-1.25)]
-                dg2=1/dw2[(T<Tl+1.25)&(T>Tl-1.25)]
-                model2,param2=DL.returnfitmodel('Dq2')
-                Dq2fit2=model2.fit(g2[q2>250],param2,x=q2[q2>250],weights=dg2[q2>250])
-                ax2.plot(x,Dq2fit2.eval(x=x),color=color,zorder=10)
-                DLSmeas['Fitanalysis'][fit]['D1']=np.append(DLSmeas['Fitanalysis'][fit]['D1'],Dq2fit1.params['D'].value)
-                DLSmeas['Fitanalysis'][fit]['dD1']=np.append(DLSmeas['Fitanalysis'][fit]['dD1'],Dq2fit1.params['D'].stderr)
-                DLSmeas['Fitanalysis'][fit]['D2']=np.append(DLSmeas['Fitanalysis'][fit]['D2'],Dq2fit2.params['D'].value)
-                DLSmeas['Fitanalysis'][fit]['dD2']=np.append(DLSmeas['Fitanalysis'][fit]['dD2'],Dq2fit2.params['D'].stderr)
-                ax2.set_ylabel(r'$\gamma_2$ [ms$^{-1}$]', color = color)
-                ax2.tick_params(axis ='y', labelcolor = color)
-                ax2.set_ylim([0,1.1*max(np.array(w2)[(T<Tl+1.25)&(T>Tl-1.25)])])
-                ax1.set_ylim([0,1.1*max(np.array(w1)[(T<Tl+1.25)&(T>Tl-1.25)])])
-                ax1.set_title(str(Tl))
-                fig.savefig('figures/fitanalysis_'+fit +'/' +DLSmeas['Name']+ str(Tl) +'.pdf',bbox_inches='tight')
-                DL.writesummary('Summaries/' + DLSmeas['Name'] + '.tex',r'\includegraphics[width=.4\textwidth]{../figures/fitanalysis_'+fit +'/' +DLSmeas['Name']+ str(Tl) +'.pdf}')
-                plt.close()
+                if not np.shape([])==np.shape(np.array(w1)[(T<Tl+1.25)&(T>Tl-1.25)]):
+                    DLSmeas['Fitanalysis'][fit]['T']=np.append(DLSmeas['Fitanalysis'][fit]['T'],Tl)
+                    fig, ax1 = plt.subplots()
+                    ax1.errorbar(np.array(q)[(T<Tl+1.25)&(T>Tl-1.25)]**2,np.array(w1)[(T<Tl+1.25)&(T>Tl-1.25)],dw1[(T<Tl+1.25)&(T>Tl-1.25)],fmt='o')
+                    model,param=DL.returnfitmodel('Dq2')
+                    dw1[dw1==None]=1000
+                    dw1=np.array(dw1,dtype=float)
+                    dw1[np.isnan(dw1)]=1000
+                    g1=np.array(w1)[(T<Tl+1.25)&(T>Tl-1.25)]
+                    dg1=1/dw1[(T<Tl+1.25)&(T>Tl-1.25)]
+                    q2=np.array(q)[(T<Tl+1.25)&(T>Tl-1.25)]**2
+                    Dq2fit1=model.fit(g1[q2>250],param,x=q2[q2>250],weights=dg1[q2>250])
+                    x=np.linspace(0,650)
+                    ax1.plot(x,Dq2fit1.eval(x=x),color='k',zorder=10)
+                    ax1.set_xlabel(r'$q^2$ [nm$^{-2}$]')
+                    ax1.set_ylabel(r'$\gamma$ [ms$^{-1}$]')
+                    ax2 = ax1.twinx()
+                    color = 'tab:green'
+                    ax2.errorbar(np.array(q)[(T<Tl+1.25)&(T>Tl-1.25)]**2,np.array(w2)[(T<Tl+1.25)&(T>Tl-1.25)],dw2[(T<Tl+1.25)&(T>Tl-1.25)],fmt='s',color = color)
+                    dw2[dw2==None]=1000
+                    dw2[dw2==np.inf]=1000                
+                    dw2=np.array(dw2,dtype=float)
+                    dw2[np.isnan(dw2)]=1000
+                    g2=np.array(w2)[(T<Tl+1.25)&(T>Tl-1.25)]
+                    dg2=1/dw2[(T<Tl+1.25)&(T>Tl-1.25)]
+                    model2,param2=DL.returnfitmodel('Dq2')
+                    Dq2fit2=model2.fit(g2[q2>250],param2,x=q2[q2>250],weights=dg2[q2>250])
+                    ax2.plot(x,Dq2fit2.eval(x=x),color=color,zorder=10)
+                    DLSmeas['Fitanalysis'][fit]['D1']=np.append(DLSmeas['Fitanalysis'][fit]['D1'],Dq2fit1.params['D'].value)
+                    DLSmeas['Fitanalysis'][fit]['dD1']=np.append(DLSmeas['Fitanalysis'][fit]['dD1'],Dq2fit1.params['D'].stderr)
+                    DLSmeas['Fitanalysis'][fit]['D2']=np.append(DLSmeas['Fitanalysis'][fit]['D2'],Dq2fit2.params['D'].value)
+                    DLSmeas['Fitanalysis'][fit]['dD2']=np.append(DLSmeas['Fitanalysis'][fit]['dD2'],Dq2fit2.params['D'].stderr)
+                    ax2.set_ylabel(r'$\gamma_2$ [ms$^{-1}$]', color = color)
+                    ax2.tick_params(axis ='y', labelcolor = color)
+                    ax2.set_ylim([0,1.1*max(np.array(w2)[(T<Tl+1.25)&(T>Tl-1.25)])])
+                    ax1.set_ylim([0,1.1*max(np.array(w1)[(T<Tl+1.25)&(T>Tl-1.25)])])
+                    ax1.set_title(str(Tl))
+                    fig.savefig('figures/fitanalysis_'+fit +'/' +DLSmeas['Name']+ str(Tl) +'.pdf',bbox_inches='tight')
+                    DL.writesummary('Summaries/' + DLSmeas['Name'] + '.tex',r'\includegraphics[width=.4\textwidth]{../figures/fitanalysis_'+fit +'/' +DLSmeas['Name']+ str(Tl) +'.pdf}')
+                    plt.close()
 #%% plot fit results as a function of T
 for DLSmeas in DLS:
     DL.writesummary('Summaries/' + DLSmeas['Name'] + '.tex',r'\section{Temperature dependence}')
