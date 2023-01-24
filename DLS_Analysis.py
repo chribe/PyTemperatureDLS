@@ -137,7 +137,7 @@ for hi,Td in enumerate(Tdifference):
         #print(Tlimit[hi1:hi+1])
         Tlimits.append(np.mean(Tlimit[hi1:hi+1]))
         hi1=hi+1
-        
+Tlimits.append(np.mean(Tlimit[hi1:-1]))        
 #%% plot Contin
 #Tlimits=np.arange(285,319,2.5)
 if not os.path.exists('figures'):
