@@ -37,18 +37,27 @@ def savehdf(name,dataset):
     elif isinstance(dataset,list):
         savehdflist(dataset,path,f)
     f.close()
+    
 def savehdflist(liste,path,f):
-    # print('liste: ' + path)
     for hi,listentry in enumerate(liste):
         if isinstance(listentry,dict):
             savehdfdict(listentry, path + 'Dataset_' + str(hi) +'/', f)
         elif isinstance(listentry,list):
             savehdflist(listentry, path + 'Dataset_' + str(hi) +'/', f)
         else:
-            f.create_dataset(path + 'entry' + str(hi) +'/',data=listentry)
-            
+            # print(path + 'entry' + str(hi) +'/')
+            # print('liste: ' + path)
+            # print(hi)
+            # print(listentry)
+            # try:
+            f.create_dataset(name=path + 'entry' + str(hi),data=listentry)
+            # except:
+            #     f.create_dataset(name='/Dataset_0/RedData/Dataset_0/angle/',data=np.array(30))
+            #     print('hardcoded')
+                    
+
 def savehdfdict(dictionary,path,f):
-    # print('dict: ' + path)
+    #print('dict: ' + path)
     for key in dictionary.keys():
         if isinstance(dictionary[key],dict):
             savehdfdict(dictionary[key],path + key + '/',f)
@@ -58,7 +67,53 @@ def savehdfdict(dictionary,path,f):
             if dictionary[key] is None:
                 dictionary[key]=np.nan
             f.create_dataset(path + key,data=dictionary[key])
-
+def loadhdf(Filename):
+    with h5py.File(Filename, "r") as f:
+        a_group_key = list(f.keys())[0]
+        print('loading of hdf5 file is not yet implemented')
+        
+#%% alternative way of implementation
+# def savehdf(name,dataset):
+#     f=h5py.File(name,'w')
+#     if isinstance(dataset,dict):
+#         savehdfdict(dataset,f)
+#     elif isinstance(dataset,list):
+#         savehdflist(dataset,f)
+#     f.close()
+# def savehdflist(liste,group):
+#     for hi,listentry in enumerate(liste):
+#         if isinstance(listentry,dict):
+#             grp=group.create_group('Dataset_' + str(hi))
+#             savehdfdict(listentry,grp)
+#         elif isinstance(listentry,list):
+#             grp=group.create_group('Dataset_' + str(hi))
+#             savehdflist(listentry, grp)
+#         else:
+#             print('')
+#             # print(liste)
+#             # try:
+#             #     group['value']=liste
+#             # except:
+#             #     print(group.name +' already exists...')
+            
+# def savehdfdict(dictionary,group):
+#     #print('dict: ' +  group.name)
+#     for key in dictionary.keys():
+#         if isinstance(dictionary[key],dict):
+#             grp=group.create_group(key)
+#             savehdfdict(dictionary[key],grp)
+#         elif isinstance(dictionary[key],list):
+#             grp=group.create_group(key)
+#             savehdflist(dictionary[key],grp)
+#         else:
+#             if dictionary[key] is None:
+#                 dictionary[key]=np.nan
+#             # print('==========')
+#             # print(dictionary[key])
+#             # print(key)
+#             # print(group.name)
+#             # group[key]=dictionary[key]
+        
 #%%
 # readin data
 def readin(file):
