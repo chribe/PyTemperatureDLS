@@ -165,12 +165,16 @@ def writesummary(filename,line,perm='a'):
         f.write(line)
         f.write('\n')
 #%% define fit functions
+def gaussdistexpnorm(x,w,sig):
+    return (0.5*np.exp(0.5*x*(sig**2*t-2*w))*(sp.special.erf((w-sig**2*x)/(4*sig**2)**0.5)+1))**2
 def normalandstretchednorm(x,a1,w1,w2,b):
     return a1*np.exp(-2*w1*x)+(1-a1)*np.exp(-(2*w2*x)**b)
 def stretchedstretchednorm(x,a1,w1,w2,b1,b2):
     return a1*np.exp(-(2*w1*x)**b1)+(1-a1)*np.exp(-(2*w2*x)**b2)
 def doubleexponential(x,a1,a2,w1,w2):
     return a1*np.exp(-2*w1*x)+a2*np.exp(-2*w2*x)
+def singleexponentialnorm(x,w1):
+    return np.exp(-2*w1*x)
 def doubleexponentialnorm(x,a1,w1,w2):
     return a1*np.exp(-2*w1*x)+(1-a1)*np.exp(-2*w2*x)
 def Dq2(x,D):
@@ -184,6 +188,15 @@ def returnfitmodel(name):
         params.add('w1', value=0.50, min=0)
         params.add('delta', value=0.50, min=0)
         params.add('w2', expr='w1+delta')
+    elif name=='gaussdistexpnorm':
+        model = Model(gaussdistexpnorm)
+        params = Parameters()
+        params.add('w', value=0.50, min=0)
+        params.add('sig', value=0.50, min=0)
+    elif name=='singleexponentialnorm':
+        model = Model(singleexponentialnorm)
+        params = Parameters()
+        params.add('w1', value=0.50, min=0)
     elif name=='doubleexponentialnorm':
         model = Model(doubleexponentialnorm)
         params = Parameters()
