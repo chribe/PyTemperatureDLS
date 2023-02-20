@@ -16,6 +16,7 @@ from lmfit import Model, Parameters
 import pickle
 import warnings
 import h5py
+import scipy as sp
 warnings.filterwarnings("ignore")
 
 #%% different functions
@@ -165,8 +166,11 @@ def writesummary(filename,line,perm='a'):
         f.write(line)
         f.write('\n')
 #%% define fit functions
-def gaussdistexpnorm(x,w,sig):
-    return (0.5*np.exp(0.5*x*(sig**2*t-2*w))*(sp.special.erf((w-sig**2*x)/(4*sig**2)**0.5)+1))**2
+def gaussdistexpnorm(x,w1,sig):
+    y= (0.5*np.exp(0.5*x*(sig**2*x-2*w1))*(sp.special.erf((w1-sig**2*x)/(2*sig**2)**0.5)+1))**2
+    y[np.isnan(y)]=0
+    y=y/y[0]
+    return y
 def normalandstretchednorm(x,a1,w1,w2,b):
     return a1*np.exp(-2*w1*x)+(1-a1)*np.exp(-(2*w2*x)**b)
 def stretchedstretchednorm(x,a1,w1,w2,b1,b2):
@@ -191,8 +195,8 @@ def returnfitmodel(name):
     elif name=='gaussdistexpnorm':
         model = Model(gaussdistexpnorm)
         params = Parameters()
-        params.add('w', value=0.50, min=0)
-        params.add('sig', value=0.50, min=0)
+        params.add('w1', value=10, min=0)
+        params.add('sig', value=1, min=0)
     elif name=='singleexponentialnorm':
         model = Model(singleexponentialnorm)
         params = Parameters()
