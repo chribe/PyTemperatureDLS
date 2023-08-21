@@ -59,7 +59,7 @@ for DLSmeas in DLS:
     for hi,meas in enumerate(DLSmeas['Data']):
         if meas['angle'] in np.arange(30,160,10):    
             if (((meas['T']-currT)**2<dT**2 and currangle==meas['angle']) or len(currdata)==0) \
-                and hi!=len(DLSmeas['Data']):
+                and hi!=len(DLSmeas['Data'])-1:
                 currdata.append(meas)
             else:
                 for entr in currdata[0].keys():
