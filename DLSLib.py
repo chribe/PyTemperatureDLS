@@ -159,7 +159,7 @@ def readin(file):
           "Time":str(FC['Time']).replace("\t", ''),
           "Monitor":FC['monitor']}
     wl=632.8*1e-9
-    data.update({'q':np.array(4*np.pi*1.332/wl*np.sin(data['angle']/360*np.pi)*1e-6)})#nm^-1
+    data.update({'q':np.array(4*np.pi*1.332/wl*np.sin(data['angle']/360*np.pi))})#nm^-1
     return data
 def writesummary(filename,line,perm='a'):
     with open(filename,perm) as f:
